@@ -1,8 +1,39 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Apple, Eye, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useApi } from "@/hooks/useApi";
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  
+  const { login } = useAuth();
+  const { request, loading, error } = useApi();
+  const router = useRouter();
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await request("/auth/register", {
+        method: "POST",
+        body: { name, email, password }
+      });
+      // Assuming response gives { token, user }
+      if (response && response.token) {
+        login(response.token, response.user);
+        router.push("/");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
   return (
     <div className="flex min-h-screen bg-white font-sans">
       {/* Left Side - Graphic & Branding */}
@@ -43,20 +74,24 @@ export default function RegisterPage() {
       <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-16 lg:px-24">
         <div className="w-full max-w-[440px] mx-auto flex flex-col justify-center min-h-[90vh]">
           {/* Header */}
-          <div className="mb-10 pt-10">
+          <div className="mb-8 pt-10">
             <h2 className="text-3xl font-bold text-[#111827] mb-2 tracking-tight">Create your account</h2>
             <p className="text-[#6b7280] text-[15px]">Join the gallery of the curated.</p>
+            {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
           </div>
 
           {/* Form */}
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleRegister}>
             <div>
               <label className="block text-[11px] font-bold tracking-widest text-[#6b7280] uppercase mb-2">
                 Full Name
               </label>
               <input 
                 type="text" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="Alexandros Vance"
+                required
                 className="w-full bg-[#f3f4f6] text-[#111827] rounded-xl px-4 py-3.5 outline-none transition-all placeholder:text-[#9ca3af] focus:ring-2 focus:ring-[#3b82f6]/50 focus:bg-white"
               />
             </div>
@@ -67,7 +102,10 @@ export default function RegisterPage() {
               </label>
               <input 
                 type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="curator@ethereal.com"
+                required
                 className="w-full bg-[#f3f4f6] text-[#111827] rounded-xl px-4 py-3.5 outline-none transition-all placeholder:text-[#9ca3af] focus:ring-2 focus:ring-[#3b82f6]/50 focus:bg-white"
               />
             </div>
@@ -78,21 +116,30 @@ export default function RegisterPage() {
               </label>
               <div className="relative">
                 <input 
-                  type="password" 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  required
                   className="w-full bg-[#f3f4f6] text-[#111827] rounded-xl px-4 py-3.5 outline-none transition-all placeholder:text-[#9ca3af] tracking-widest focus:ring-2 focus:ring-[#3b82f6]/50 focus:bg-white pr-12"
                 />
-                <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#4b5563] transition-colors">
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#4b5563] transition-colors"
+                >
                   <Eye size={18} />
                 </button>
               </div>
             </div>
 
             <button 
-              type="button" 
-              className="w-full flex items-center justify-center gap-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white font-semibold rounded-xl py-3.5 transition-colors mt-4 shadow-sm shadow-blue-500/20"
+              type="submit" 
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white font-semibold rounded-xl py-3.5 transition-colors mt-4 shadow-sm shadow-blue-500/20 disabled:opacity-75"
             >
-              Create Account <ArrowRight size={18} className="ml-1" />
+              {loading ? "Creating Account..." : "Create Account"} 
+              {!loading && <ArrowRight size={18} className="ml-1" />}
             </button>
           </form>
 

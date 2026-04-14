@@ -1,8 +1,36 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Apple } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useApi } from "@/hooks/useApi";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  
+  const { login } = useAuth();
+  const { request, loading, error } = useApi();
+  const router = useRouter();
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await request("/auth/login", {
+        method: "POST",
+        body: { email, password }
+      });
+      if (response && response.token) {
+        login(response.token, response.user);
+        router.push("/");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#1c1c1c] p-6 lg:p-12 font-sans">
       <div className="w-full max-w-[1280px] bg-white rounded-[24px] overflow-hidden flex flex-col lg:flex-row min-h-[85vh] shadow-2xl">
@@ -45,20 +73,24 @@ export default function LoginPage() {
         <div className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-24 bg-white relative">
           <div className="w-full max-w-[400px]">
             {/* Header */}
-            <div className="mb-10">
+            <div className="mb-8">
               <h2 className="text-3xl text-[#3b3b3b] font-medium mb-2">Welcome back</h2>
               <p className="text-[#737373]">Enter your details to access the boutique</p>
+              {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
             </div>
 
             {/* Form */}
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={handleLogin}>
               <div>
                 <label className="block text-xs font-bold tracking-widest text-[#888] uppercase mb-2">
                   Email Address
                 </label>
                 <input 
                   type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="curator@ethereal.com"
+                  required
                   className="w-full bg-[#f0f2f5] border border-transparent focus:border-[#d0d4dc] focus:bg-white text-[#333] rounded-md px-4 py-3.5 outline-none transition-colors placeholder:text-[#a0a4ab]"
                 />
               </div>
@@ -74,16 +106,20 @@ export default function LoginPage() {
                 </div>
                 <input 
                   type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  required
                   className="w-full bg-[#f0f2f5] border border-transparent focus:border-[#d0d4dc] focus:bg-white text-[#333] rounded-md px-4 py-3.5 outline-none transition-colors placeholder:text-[#a0a4ab] tracking-widest"
                 />
               </div>
 
               <button 
-                type="button" 
-                className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white font-medium rounded-md py-3.5 transition-colors mt-2"
+                type="submit" 
+                disabled={loading}
+                className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white font-medium rounded-md py-3.5 transition-colors mt-2 disabled:opacity-75"
               >
-                Sign In
+                {loading ? "Signing In..." : "Sign In"}
               </button>
             </form>
 
