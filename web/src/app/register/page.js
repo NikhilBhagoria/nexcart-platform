@@ -15,23 +15,18 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   
   const { login } = useAuth();
-  const { request, loading, error } = useApi();
+  const { post, loading, error } = useApi();
   const router = useRouter();
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    try {
-      const response = await request("/auth/register", {
-        method: "POST",
-        body: { name, email, password }
-      });
-      // Assuming response gives { token, user }
-      if (response && response.token) {
-        login(response.token, response.user);
-        router.push("/");
-      }
-    } catch (err) {
-      console.error(err);
+    
+    const { success, data } = await post("/auth/register", { name, email, password });
+    
+    // Assuming response gives { token, user }
+    if (success && data?.token) {
+      login(data.token, data.user);
+      router.push("/");
     }
   };
   return (

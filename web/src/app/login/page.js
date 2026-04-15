@@ -13,22 +13,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   
   const { login } = useAuth();
-  const { request, loading, error } = useApi();
+  const { post, loading, error } = useApi();
   const router = useRouter();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    try {
-      const response = await request("/auth/login", {
-        method: "POST",
-        body: { email, password }
-      });
-      if (response && response.token) {
-        login(response.token, response.user);
-        router.push("/");
-      }
-    } catch (err) {
-      console.error(err);
+
+    const { success, data } = await post("/auth/login", { email, password });
+
+    if (success && data?.token) {
+      login(data.token, data.user);
+      router.push("/");
     }
   };
   return (

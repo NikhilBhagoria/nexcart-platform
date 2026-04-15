@@ -55,15 +55,31 @@ export function useApi() {
       }
 
       setData(responseData);
-      return responseData;
+      return { success: true, data: responseData, error: null };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
-      throw err;
+      return { success: false, data: null, error: errorMessage };
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const get = useCallback((url, options = {}) => {
+    return request(url, { ...options, method: 'GET' });
+  }, [request]);
+
+  const post = useCallback((url, body, options = {}) => {
+    return request(url, { ...options, method: 'POST', body });
+  }, [request]);
+
+  const put = useCallback((url, body, options = {}) => {
+    return request(url, { ...options, method: 'PUT', body });
+  }, [request]);
+
+  const del = useCallback((url, options = {}) => {
+    return request(url, { ...options, method: 'DELETE' });
+  }, [request]);
 
   const reset = useCallback(() => {
     setData(null);
@@ -71,5 +87,5 @@ export function useApi() {
     setLoading(false);
   }, []);
 
-  return { data, loading, error, request, reset };
+  return { data, loading, error, request, get, post, put, del, reset };
 }
