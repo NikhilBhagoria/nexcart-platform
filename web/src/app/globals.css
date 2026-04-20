@@ -1,34 +1,77 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Premium Dark Mode Default Palette */
+  --background: #090a0f; /* Deep obsidian */
+  --foreground: #f8fafc; /* Crisp off-white */
+  --accent: #3b82f6; /* Electric blue */
+  --accent-foreground: #ffffff;
+  
+  /* Glassmorphism / Cards */
+  --card-background: rgba(20, 24, 34, 0.7);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-hover: rgba(255, 255, 255, 0.03);
+  
+  /* Input & Borders */
+  --border: rgba(255, 255, 255, 0.12);
+  --input-bg: rgba(255, 255, 255, 0.05);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #ffffff;
-    --foreground: #ededed;
-  }
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-card: var(--card-background);
+  --color-card-border: var(--card-border);
+  --color-border: var(--border);
+  
+  --font-sans: var(--font-geist-sans), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
-.text-on-surface{
-      --tw-text-opacity: 1;
-    color: rgb(45 51 56 / var(--tw-text-opacity, 1));
+
+/* Premium Utilities */
+.glass-panel {
+  background: var(--card-background);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+}
+
+.text-gradient-accent {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(135deg, #60a5fa 0%, #c084fc 100%);
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+/* Base custom utils from old CSS kept for compatibility if needed */
+.text-on-surface {
+  color: rgba(255, 255, 255, 0.9);
 }
 .text-on-surface-variant {
-    --tw-text-opacity: 1;
-    color: rgb(89 96 101 / var(--tw-text-opacity, 1));
+  color: rgba(255, 255, 255, 0.6);
 }
