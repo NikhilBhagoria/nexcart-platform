@@ -1,47 +1,56 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 /**
- * Fetches all products from the backend API.
- * Uses cache: 'no-store' to ensure fresh data during development SSR.
- * 
- * @returns {Promise<Object>} The API response { success, data }
+ * Fetches all products from the backend Node.js API
+ * @returns {Promise<Array>} Array of product objects
  */
-export async function fetchProducts() {
+export async function getAllProducts() {
     try {
         const response = await fetch(`${API_URL}/products`, {
-            cache: 'no-store', // Disable cache for MVP development
+            // Revalidate cache every 60 seconds (Next.js specific optimization)
+            next: { revalidate: 60 },
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
         
         if (!response.ok) {
-            throw new Error(`Error: ${response.status} ${response.statusText}`);
+            throw new Error(`Failed to fetch products: ${response.status}`);
         }
         
-        return await response.json();
+        const json = await response.json();
+        
+        // Return the data array directly, skipping the wrapper
+        return json.data || []; 
     } catch (error) {
-        console.error("Failed to fetch products:", error);
-        return { success: false, data: [] };
+        console.error("Error in getAllProducts service:", error);
+        return []; // Return empty array on failure
     }
 }
 
 /**
- * Fetches a single product by ID from the backend API.
- * 
- * @param {string} id The product UUID
- * @returns {Promise<Object>} The API response { success, data }
+ * Fetches a single product by ID
+ * @param {string} id - The product ID
+ * @returns {Promise<Object|null>} Product object or null
  */
-export async function fetchProductById(id) {
+export async function getProductById(id) {
     try {
         const response = await fetch(`${API_URL}/products/${id}`, {
-            cache: 'no-store',
+            next: { revalidate: 60 },
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
         
         if (!response.ok) {
-            throw new Error(`Error: ${response.status} ${response.statusText}`);
+            if (response.status === 404) return null;
+            throw new Error(`Failed to fetch product ${id}: ${response.status}`);
         }
         
-        return await response.json();
+        const json = await response.json();
+        return json.data || null;
     } catch (error) {
-        console.error(`Failed to fetch product with ID ${id}:`, error);
-        return { success: false, data: null };
+        console.error(`Error in getProductById service for ${id}:`, error);
+        return null;
     }
 }
