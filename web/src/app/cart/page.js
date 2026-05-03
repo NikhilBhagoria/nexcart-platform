@@ -3,10 +3,14 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function CartPage() {
     const { cartItems, updateQuantity, removeFromCart, cartTotal, clearCart, isInitialized } = useCart();
+    const { user } = useAuth();
+    const router = useRouter();
     const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [orderComplete, setOrderComplete] = useState(false);
 
@@ -14,6 +18,11 @@ export default function CartPage() {
     if (!isInitialized) return null; 
 
     const handleCheckout = () => {
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+
         setIsCheckingOut(true);
         // Simulate a network request for payment gateway and checkout pipeline
         setTimeout(() => {
