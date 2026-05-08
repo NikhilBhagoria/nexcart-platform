@@ -4,12 +4,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrderService } from '@/services/orderService';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function CartPage() {
     const { cartItems, updateQuantity, removeFromCart, cartTotal, clearCart, isInitialized } = useCart();
     const { user } = useAuth();
+    const { createOrder } = useOrderService();
     const router = useRouter();
     const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [orderComplete, setOrderComplete] = useState(false);
@@ -17,19 +19,32 @@ export default function CartPage() {
     // Prevent hydration mismatch between server HTML and local storage injection
     if (!isInitialized) return null; 
 
-    const handleCheckout = () => {
+    const handleCheckout = async () => {
         if (!user) {
             router.push('/login');
             return;
         }
 
         setIsCheckingOut(true);
-        // Simulate a network request for payment gateway and checkout pipeline
-        setTimeout(() => {
-            setIsCheckingOut(false);
+        
+        const payload = {
+            items: cartItems.map(item => ({
+                id: item.id,
+                quantity: item.quantity,
+                price: item.price
+            })),
+            totalAmount: cartTotal
+        };
+
+        const { success } = await createOrder(payload);
+
+        setIsCheckingOut(false);
+        if (success) {
             setOrderComplete(true);
             clearCart();
-        }, 2000);
+        } else {
+            alert('Failed to complete order. Please try again.');
+        }
     };
 
     if (orderComplete) {
