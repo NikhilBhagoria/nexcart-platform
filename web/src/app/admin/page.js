@@ -10,12 +10,10 @@ import Image from 'next/image';
 export default function AdminDashboard() {
     const { user } = useAuth();
     const router = useRouter();
-    const { createProduct, updateProduct, deleteProduct, loading: isMutating } = useAdminService();
+    const { createProduct, deleteProduct, loading } = useAdminService();
     
     const [products, setProducts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [editingProduct, setEditingProduct] = useState(null);
+    const [isFetching, setIsFetching] = useState(true);
     
     const [formData, setFormData] = useState({
         name: '',
@@ -30,272 +28,156 @@ export default function AdminDashboard() {
             router.push('/login');
             return;
         }
-        if (user.role !== 'ADMIN') {
-            router.push('/');
-            return;
-        }
-        
-        loadProducts();
-    }, [user, router]); // eslint-disable-line react-hooks/exhaustive-deps
+        fetchProducts();
+    }, [user, router]);
 
-    const loadProducts = async () => {
-        setIsLoading(true);
-        // Force fresh fetch on the client if possible
-        const data = await getAllProducts();
-        setProducts(data || []);
-        setIsLoading(false);
+    const fetchProducts = async () => {
+        setIsFetching(true);
+        try {
+            const data = await getAllProducts();
+            setProducts(data || []);
+        } catch (error) {
+            console.error("Failed to fetch products", error);
+        }
+        setIsFetching(false);
     };
 
-    const handleOpenModal = (product = null) => {
-        if (product) {
-            setEditingProduct(product);
-            setFormData({
-                name: product.name,
-                description: product.description,
-                price: product.price,
-                imageUrl: product.imageUrl,
-                category: product.category
-            });
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleCreate = async (e) => {
+        e.preventDefault();
+        const { success } = await createProduct({
+            ...formData,
+            price: parseFloat(formData.price)
+        });
+        
+        if (success) {
+            setFormData({ name: '', description: '', price: '', imageUrl: '', category: '' });
+            fetchProducts(); // Refresh list
         } else {
-            setEditingProduct(null);
-            setFormData({
-                name: '',
-                description: '',
-                price: '',
-                imageUrl: '',
-                category: ''
-            });
+            alert('Failed to create product. Please ensure you have ADMIN privileges.');
         }
-        setShowModal(true);
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this piece?")) {
+        if (window.confirm("Permanently delete this curated item?")) {
             const { success } = await deleteProduct(id);
             if (success) {
-                // Remove instantly from UI to avoid waiting for cache invalidation
-                setProducts(products.filter(p => p.id !== id));
+                fetchProducts();
             } else {
-                alert("Failed to delete product.");
+                alert('Failed to delete product. Please ensure you have ADMIN privileges.');
             }
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        const payload = {
-            ...formData,
-            price: parseFloat(formData.price)
-        };
-
-        let response;
-        if (editingProduct) {
-            response = await updateProduct(editingProduct.id, payload);
-        } else {
-            response = await createProduct(payload);
-        }
-
-        if (response.success) {
-            setShowModal(false);
-            loadProducts(); // Reload to get fresh data
-        } else {
-            alert(response.error || "Failed to save product.");
-        }
-    };
-
-    if (!user || user.role !== 'ADMIN') return null;
+    if (!user) return null;
 
     return (
-        <main className="min-h-screen pt-32 pb-24 px-8 max-w-7xl mx-auto w-full font-sans">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
-                <div>
-                    <h1 className="text-4xl font-black text-white tracking-tighter uppercase">Curator Dashboard</h1>
-                    <p className="text-slate-400 mt-2">Manage the Ethereal Boutique collection.</p>
-                </div>
-                <button 
-                    onClick={() => handleOpenModal()}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold uppercase tracking-widest text-xs rounded-full transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover-glow"
-                >
-                    + Add New Piece
-                </button>
+        <main className="min-h-screen pt-32 pb-24 px-8 max-w-7xl mx-auto w-full">
+            <div className="mb-12">
+                <h1 className="text-4xl font-black text-white mb-2 tracking-tighter uppercase">Curator Dashboard</h1>
+                <p className="text-slate-400 text-lg">Manage your exclusive collection, <span className="text-white font-medium">{user.name || user.email}</span>.</p>
             </div>
 
-            {/* Products Table */}
-            <div className="glass-panel rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-white/5 border-b border-white/10 text-xs font-bold tracking-widest text-slate-400 uppercase">
-                                <th className="p-6">Piece</th>
-                                <th className="p-6">Category</th>
-                                <th className="p-6">Price</th>
-                                <th className="p-6 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan="4" className="p-12 text-center text-slate-400">Loading collection...</td>
-                                </tr>
-                            ) : products.length === 0 ? (
-                                <tr>
-                                    <td colSpan="4" className="p-12 text-center text-slate-400">No pieces found in the collection.</td>
-                                </tr>
-                            ) : (
-                                products.map(product => (
-                                    <tr key={product.id} className="hover:bg-white/[0.02] transition-colors group">
-                                        <td className="p-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-black/20 flex-shrink-0 border border-white/5">
-                                                    <Image 
-                                                        src={product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1000'}
-                                                        alt={product.name}
-                                                        fill
-                                                        className="object-cover"
-                                                        sizes="48px"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <p className="text-white font-medium group-hover:text-blue-400 transition-colors">{product.name}</p>
-                                                    <p className="text-slate-500 text-xs truncate max-w-[200px]">{product.id.substring(0,8)}...</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-6">
-                                            <span className="bg-white/5 px-3 py-1 rounded-full text-xs font-bold tracking-widest text-slate-300 uppercase">
-                                                {product.category}
-                                            </span>
-                                        </td>
-                                        <td className="p-6 text-slate-300 font-light">
-                                            ${product.price.toFixed(2)}
-                                        </td>
-                                        <td className="p-6 text-right">
-                                            <button 
-                                                onClick={() => handleOpenModal(product)}
-                                                className="text-blue-400 hover:text-blue-300 font-semibold uppercase tracking-widest text-xs mr-4 transition-colors"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDelete(product.id)}
-                                                className="text-red-500 hover:text-red-400 font-semibold uppercase tracking-widest text-xs transition-colors"
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                {/* Product Creation Form */}
+                <div className="lg:col-span-1">
+                    <div className="glass-panel p-8 rounded-3xl sticky top-32">
+                        <h2 className="text-xl font-bold text-white mb-6 uppercase tracking-widest border-b border-white/10 pb-4">
+                            Add New Piece
+                        </h2>
+                        
+                        <form onSubmit={handleCreate} className="space-y-5">
+                            <div>
+                                <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Item Name</label>
+                                <input required name="name" value={formData.name} onChange={handleChange} placeholder="Obsidian Vase" className="w-full bg-white/5 border border-white/10 focus:border-blue-500 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600 text-sm" />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Description</label>
+                                <textarea required name="description" value={formData.description} onChange={handleChange} placeholder="A stunning piece of modern..." rows="3" className="w-full bg-white/5 border border-white/10 focus:border-blue-500 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600 text-sm resize-none"></textarea>
+                            </div>
 
-            {/* Modal */}
-            {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-                    <div className="absolute inset-0 bg-[#090a0f]/90 backdrop-blur-sm" onClick={() => !isMutating && setShowModal(false)}></div>
-                    <div className="relative glass-panel border border-white/10 w-full max-w-2xl rounded-3xl p-8 max-h-[90vh] overflow-y-auto shadow-2xl">
-                        <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">
-                                {editingProduct ? 'Edit Piece' : 'Add New Piece'}
-                            </h2>
-                            <button 
-                                onClick={() => setShowModal(false)}
-                                className="text-slate-500 hover:text-white transition-colors p-2"
-                                disabled={isMutating}
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Price ($)</label>
+                                    <input required type="number" step="0.01" name="price" value={formData.price} onChange={handleChange} placeholder="299.99" className="w-full bg-white/5 border border-white/10 focus:border-blue-500 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600 text-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Category</label>
+                                    <input required name="category" value={formData.category} onChange={handleChange} placeholder="Decor" className="w-full bg-white/5 border border-white/10 focus:border-blue-500 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600 text-sm" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Image URL</label>
+                                <input required name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://images.unsplash.com/..." className="w-full bg-white/5 border border-white/10 focus:border-blue-500 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600 text-sm" />
+                            </div>
+
+                            <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg py-3 transition-all mt-4 hover-glow shadow-lg shadow-blue-900/20 disabled:opacity-50 text-sm uppercase tracking-widest">
+                                {loading ? "Curating..." : "Publish to Gallery"}
                             </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                <div className="sm:col-span-2">
-                                    <label className="block text-xs font-bold tracking-widest text-slate-500 uppercase mb-2">Piece Name</label>
-                                    <input 
-                                        type="text" 
-                                        required 
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                        className="w-full bg-white/5 border border-white/10 focus:border-blue-500 focus:bg-white/10 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600"
-                                        placeholder="The Obsidian Watch"
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-xs font-bold tracking-widest text-slate-500 uppercase mb-2">Category</label>
-                                    <input 
-                                        type="text" 
-                                        required 
-                                        value={formData.category}
-                                        onChange={(e) => setFormData({...formData, category: e.target.value})}
-                                        className="w-full bg-white/5 border border-white/10 focus:border-blue-500 focus:bg-white/10 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600"
-                                        placeholder="Accessories"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold tracking-widest text-slate-500 uppercase mb-2">Price ($)</label>
-                                    <input 
-                                        type="number" 
-                                        step="0.01"
-                                        required 
-                                        value={formData.price}
-                                        onChange={(e) => setFormData({...formData, price: e.target.value})}
-                                        className="w-full bg-white/5 border border-white/10 focus:border-blue-500 focus:bg-white/10 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600"
-                                        placeholder="299.99"
-                                    />
-                                </div>
-
-                                <div className="sm:col-span-2">
-                                    <label className="block text-xs font-bold tracking-widest text-slate-500 uppercase mb-2">Image URL (Unsplash)</label>
-                                    <input 
-                                        type="url" 
-                                        required 
-                                        value={formData.imageUrl}
-                                        onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
-                                        className="w-full bg-white/5 border border-white/10 focus:border-blue-500 focus:bg-white/10 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600"
-                                        placeholder="https://images.unsplash.com/..."
-                                    />
-                                </div>
-
-                                <div className="sm:col-span-2">
-                                    <label className="block text-xs font-bold tracking-widest text-slate-500 uppercase mb-2">Description</label>
-                                    <textarea 
-                                        required 
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({...formData, description: e.target.value})}
-                                        className="w-full bg-white/5 border border-white/10 focus:border-blue-500 focus:bg-white/10 text-white rounded-lg px-4 py-3 outline-none transition-all placeholder:text-slate-600 h-32 resize-none"
-                                        placeholder="A detailed description of the piece..."
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-4 flex justify-end gap-4 border-t border-white/10">
-                                <button 
-                                    type="button"
-                                    onClick={() => setShowModal(false)}
-                                    className="px-6 py-3 text-slate-400 hover:text-white font-bold uppercase tracking-widest text-xs transition-colors"
-                                    disabled={isMutating}
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    type="submit"
-                                    disabled={isMutating}
-                                    className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold uppercase tracking-widest text-xs rounded-full transition-all disabled:opacity-50 hover-glow shadow-[0_0_20px_rgba(59,130,246,0.2)]"
-                                >
-                                    {isMutating ? 'Saving...' : 'Save Piece'}
-                                </button>
-                            </div>
                         </form>
                     </div>
                 </div>
-            )}
+
+                {/* Product Inventory List */}
+                <div className="lg:col-span-2">
+                    <h2 className="text-2xl font-bold text-white mb-6 uppercase tracking-widest">Active Inventory</h2>
+                    
+                    {isFetching ? (
+                        <div className="glass-panel p-12 rounded-3xl flex flex-col items-center justify-center text-center">
+                            <svg className="animate-spin h-8 w-8 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p className="text-slate-400">Loading catalog...</p>
+                        </div>
+                    ) : products.length === 0 ? (
+                        <div className="glass-panel p-12 rounded-3xl text-center text-slate-400">
+                            Your gallery is completely empty. Add your first piece.
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {products.map((product) => (
+                                <div key={product.id} className="glass-panel p-4 rounded-2xl flex items-center gap-6 group hover:bg-white/[0.03] transition-colors">
+                                    <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-black/20 flex-shrink-0">
+                                        <Image
+                                            src={product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1000'}
+                                            alt={product.name}
+                                            fill
+                                            className="object-cover"
+                                            sizes="80px"
+                                        />
+                                    </div>
+                                    
+                                    <div className="flex-grow flex flex-col justify-between">
+                                        <div>
+                                            <h3 className="text-white font-bold">{product.name}</h3>
+                                            <p className="text-xs text-slate-500 uppercase tracking-widest">{product.category}</p>
+                                        </div>
+                                        <p className="text-lg font-light text-slate-300">${(product.price || 0).toFixed(2)}</p>
+                                    </div>
+                                    
+                                    <div>
+                                        <button 
+                                            onClick={() => handleDelete(product.id)}
+                                            className="text-red-500 hover:text-red-400 p-2 opacity-50 group-hover:opacity-100 transition-all hover:scale-110"
+                                            title="Delete Item"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </main>
     );
 }
